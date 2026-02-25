@@ -1,6 +1,20 @@
+import logging
+
 from pydantic import PostgresDsn, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# === Logger ===
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(filename)s::%(funcName)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
+log = logging.getLogger("app")
+
+
+# === DB ===
 
 class Settings(BaseSettings):
 
