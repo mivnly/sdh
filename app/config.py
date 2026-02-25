@@ -4,23 +4,24 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
 
-    DB_USER: str
-    DB_PASSWORD: SecretStr
     DB_HOST: str
-    DB_PORT: int
     DB_NAME: str
+    DB_PORT: int
+    DB_USER: str
+    DB_PASS: SecretStr
 
     @computed_field
     @property
-    def DATABASE_URL(self) -> PostgresDsn:
-        return PostgresDsn.build(
+    def conn_url(self) -> PostgresDsn:
+        obj = PostgresDsn.build(
             scheme="postgresql+asyncpg",
-            username=self.DB_USER,
-            password=self.DB_PASSWORD.get_secret_value(),
             host=self.DB_HOST,
-            port=self.DB_PORT,
             path=self.DB_NAME,
+            port=self.DB_PORT,
+            username=self.DB_USER,
+            password=self.DB_PASS.get_secret_value(),
         )
+        return obj
 
     model_config = SettingsConfigDict(
         env_file='.env',
