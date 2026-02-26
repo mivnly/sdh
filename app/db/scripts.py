@@ -2,7 +2,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import log
-from app.db.config import asession_maker, engine
+from app.db.config import asession_maker, _engine
 from app.db.models import Base
 
 
@@ -20,7 +20,7 @@ async def create_all_tables() -> None:
     async with asession_maker() as session:
         before = await get_tables(session)
 
-    async with engine.begin() as conn:
+    async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
 
     async with asession_maker() as session:
