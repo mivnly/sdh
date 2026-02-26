@@ -14,6 +14,7 @@ async def create(session: AsyncSession, *, obj_in: UserCreate) -> User:
     try:
         await session.commit()
         await session.refresh(db_obj)
+        log.info(f"User has been added: {db_obj.username}")
         return db_obj
     except IntegrityError as e:
         await session.rollback()
