@@ -13,4 +13,4 @@ wheels/
 .env
 .ruff_cache
 .vscode
-main*
+/main*
