@@ -1,4 +1,5 @@
 from typing import overload
+from asyncpg.exceptions import UniqueViolationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,11 +16,12 @@ async def create(session: AsyncSession, *, obj_in: UserCreate) -> User:
         await session.commit()
         await session.refresh(db_obj)
         log.info(f"User has been added: {db_obj.username}")
-        return db_obj
     except IntegrityError as e:
         await session.rollback()
         msg = str(e.orig)
         log.error(msg)
+        if "duplicate key value violates" in msg:
+            raise UniqueViolationError
     return db_obj
 
 @overload
@@ -52,21 +54,28 @@ async def update(session: AsyncSession, *, db_obj: User, obj_in: UserUpdate) -> 
     if not update_data:
         raise ValueError("No fields provided for update")
 
-    changes = {}
-    for key, new_value in update_data.items():
-        current_value = getattr(db_obj, key)
+    try:
+        changes = {}
+        for key, new_value in update_data.items():
+            current_value = getattr(db_obj, key)
+            
+            if current_value != new_value:
+                changes[key] = {"before": current_value, "after": new_value}
+                setattr(db_obj, key, new_value)
+
+        if not changes:
+            log.warning("Given <obj_in> equals <db_obj>. There is nothing to update")
+            return db_obj
         
-        if current_value != new_value:
-            changes[key] = {"before": current_value, "after": new_value}
-            setattr(db_obj, key, new_value)
-
-    if not changes:
-        log.warning("Given <obj_in> equals <db_obj>. There is nothing to update")
-        return db_obj
-
-    await session.commit()
-    await session.refresh(db_obj)
-    log.info(f"User {db_obj.username} has been changed: {changes}")
+        await session.commit()
+        await session.refresh(db_obj)
+        log.info(f"User {db_obj.username} has been changed: {changes}")
+    except IntegrityError as e:
+        await session.rollback()
+        msg = str(e.orig)
+        log.error(msg)
+        if "duplicate key value violates" in msg:
+            raise UniqueViolationError
     return db_obj
 
 async def delete(session: AsyncSession, *, db_obj: User) -> User:
