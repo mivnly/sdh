@@ -1,9 +1,11 @@
 from typing import Annotated, List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from asyncpg.exceptions import UniqueViolationError
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.config import get_session
-from app.schemas.users import UserRead
+from app.db.models import User
+from app.schemas.users import UserRead, UserCreate, UserUpdate
 from app.crud import users
 
 
@@ -13,19 +15,51 @@ router = APIRouter(prefix="/users", tags=["users"])
 async def get_users(
     session: Annotated[AsyncSession, Depends(get_session)],
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    username: Annotated[str | None, Query(min_length=2, max_length=80)] = None
-):
-    if username is not None:
-        user = await users.read(session, username=username)
-        return [user] if user else []
+) -> list[User]:
     return await users.read(session, limit=limit)
 
 @router.get("/{user_id}", response_model=UserRead)
 async def get_user_by_id(
     user_id: int,
     session: Annotated[AsyncSession, Depends(get_session)],
-):
+) -> User:
     user = await users.read(session, user_id=user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User with provided ID is not found")
     return user
+
+@router.post("/", response_model=UserCreate, status_code=status.HTTP_201_CREATED)
+async def add_user(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    new_user: UserCreate,
+) -> User:
+    try:
+        return await users.create(session, obj_in=new_user)
+    except UniqueViolationError:
+        raise HTTPException(409, f"The username '{new_user.username}' is already taken. Please try a different one.")
+
+@router.put("/{user_id}", response_model=UserUpdate)
+async def update_user(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user_id: int,
+    user_to_update: UserUpdate
+) -> User:
+    db_user = await users.read(session, user_id=user_id)
+    if db_user is None:
+        raise HTTPException(404, "User with provided ID is not found")
+    
+    try:
+        return await users.update(session=session, db_obj=db_user, obj_in=user_to_update)
+    except UniqueViolationError:
+        raise HTTPException(409, f"The username '{user_to_update.username}' is already taken. Please try a different one.")
+
+@router.delete("/{user_id}", response_model=UserRead)
+async def delete_user(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user_id: int
+):
+    db_user = await users.read(session, user_id=user_id)
+    if db_user is None:
+        raise HTTPException(404, "User with provided ID is not found")
+    
+    return await users.delete(session=session, db_obj=db_user)
