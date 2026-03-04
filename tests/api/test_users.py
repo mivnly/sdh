@@ -1,12 +1,21 @@
 import httpx
 import pytest
 
-from app.schemas.users import UserRead
+from app.schemas.users import UserCreate, UserRead
 from tests.utils import logjson
 
 
 @pytest.mark.asyncio
-async def test_users_get(add_test_users, users_url):
+async def test_users_add(add_test_users: list[dict]):
+    created_user_req_fields = add_test_users[0]
+    created_user_all_fields = add_test_users[1]
+
+    assert UserCreate.model_validate(created_user_req_fields)
+    assert UserCreate.model_validate(created_user_all_fields)
+
+
+@pytest.mark.asyncio
+async def test_users_get(add_test_users: list[dict], users_url):
     async with httpx.AsyncClient() as client:
         created_user_req_fields = add_test_users[0]
         created_user_all_fields = add_test_users[1]
