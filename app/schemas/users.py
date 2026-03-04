@@ -2,6 +2,8 @@ from pydantic import BaseModel, ConfigDict
 
 
 class UserBase(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str | None = None
     surname: str | None = None
     comment: str | None = None
