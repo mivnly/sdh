@@ -1,5 +1,7 @@
 import re
+from collections.abc import AsyncGenerator
 from datetime import datetime
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -19,7 +21,7 @@ def users_url() -> URL:
 
 @pytest_asyncio.fixture(scope="session")
 async def delete_test_users(users_url: URL):
-    async with AsyncClient() as client:
+    async with AsyncClient(base_url=users_url) as client:
         resp = await client.get(users_url)
         respbody = resp.json()
 
@@ -32,14 +34,14 @@ async def delete_test_users(users_url: URL):
         ]
 
         for id in matched_ids:
-            await client.delete(str(users_url) + f"{id}")
+            await client.delete(f"{id}")
 
         log.info(f"Deleting users with IDs: {matched_ids}")
 
 
 @pytest_asyncio.fixture(scope="function")
-async def add_test_users(delete_test_users, users_url: URL) -> list[str]:
-    async with AsyncClient() as client:
+async def add_test_users(delete_test_users, users_url: URL) -> AsyncGenerator[list[dict]]:
+    async with AsyncClient(base_url=users_url) as client:
         test_user_req_fields = UserCreate(
             username=f"TestUserRequiredFields_{datetime.now().strftime('%Y%m%d-%H%M%S.%f')[:-3]}"
         )
@@ -51,11 +53,30 @@ async def add_test_users(delete_test_users, users_url: URL) -> list[str]:
             role="user",
         )
 
-        r1 = await client.post(users_url, json=test_user_req_fields.model_dump())
-        r1body = r1.json()
-        logjson("Added user: ", r1body)
-        r2 = await client.post(users_url, json=test_user_all_fields.model_dump())
-        r2body = r2.json()
-        logjson("Added user: ", r2body)
+        r1add = await client.post("/", json=test_user_req_fields.model_dump())
+        r1addbody: dict = r1add.json()
+        logjson("Added user during setup: ", r1addbody)
+        radd2 = await client.post("/", json=test_user_all_fields.model_dump())
+        r2addbody: dict = radd2.json()
+        logjson("Added user during setup: ", r2addbody)
 
-        return [test_user_req_fields.username, test_user_all_fields.username]
+        yield [r1addbody, r2addbody]
+
+        resp = await client.get(users_url)
+        respbody: list[dict[str, Any]] = resp.json()
+
+        # Search test users in the response by username
+        user_with_req_fields_dict = next(
+            (user for user in respbody if user.get("username") == test_user_req_fields.username), None
+        )
+        assert user_with_req_fields_dict is not None, f"User with username {test_user_req_fields.username} not found"
+        user_with_all_fields_dict = next(
+            (user for user in respbody if user.get("username") == test_user_all_fields.username), None
+        )
+        assert user_with_all_fields_dict is not None, f"User with username {test_user_req_fields.username} not found"
+
+        await client.delete(f"{user_with_req_fields_dict.get('id')}")
+        await client.delete(f"{user_with_all_fields_dict.get('id')}")
+
+        log.info(f"Deleted user during teardown with ID: {user_with_req_fields_dict.get('id')}")
+        log.info(f"Deleted user during teardown with ID: {user_with_all_fields_dict.get('id')}")
