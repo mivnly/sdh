@@ -1,8 +1,10 @@
+from datetime import datetime
+
 import httpx
 import pytest
 
-from app.schemas.users import UserCreate, UserRead
-from tests.utils import logjson
+from app.schemas.users import UserCreate, UserRead, UserUpdate
+from tests.utils import log, logjson
 
 
 @pytest.mark.asyncio
@@ -38,3 +40,59 @@ async def test_users_get(add_test_users: list[dict], users_url):
         assert resp.status_code == httpx.codes.OK
         assert created_user_req_fields == test_user_with_req_fields.model_dump(exclude={"id"})
         assert created_user_all_fields == test_user_with_all_fields.model_dump(exclude={"id"})
+
+
+@pytest.mark.asyncio
+async def test_users_update(add_test_users: list[dict], users_url):
+    async with httpx.AsyncClient(base_url=users_url) as client:
+        user_req_fields_updated = UserUpdate(
+            name="TestUserNameUpd",
+            surname=f"TestUserSurnameUpd",
+            username=f"TestUserAllFields_Upd_{datetime.now().strftime('%Y%m%d-%H%M%S.%f')[:-3]}",
+            comment="User for testing updated",
+            role="user"
+        )
+
+        user_all_fields_updated = UserUpdate(
+            role="test"
+        )
+
+        created_user_req_fields = add_test_users[0]
+        created_user_all_fields = add_test_users[1]
+
+
+        resp = await client.get(users_url)
+        respbody = resp.json()
+        logjson("Got users:", respbody)
+
+        user_with_req_fields_dict: dict = next(
+            user for user in respbody if user.get("username") == created_user_req_fields.get("username")
+        )
+        user_with_all_fields_dict: dict = next(
+            user for user in respbody if user.get("username") == created_user_all_fields.get("username")
+        )
+        id_user_req_fields = user_with_req_fields_dict.get("id")
+        id_user_all_fields = user_with_all_fields_dict.get("id")
+        log.info(f"Got users IDs: {id_user_req_fields}, {id_user_all_fields}")
+
+        # Update all fields
+        resp_upd_req = await client.put(f"/{id_user_req_fields}", json=user_req_fields_updated.model_dump())
+        resp_upd_req_body = resp_upd_req.json()
+        resp_upd_req_model = UserUpdate.model_validate(resp_upd_req_body)
+
+        assert resp_upd_req_model.model_dump() == user_req_fields_updated.model_dump()
+
+        # Update only one field
+        resp_get_test_user = await client.get(f"/{id_user_all_fields}")
+        resp_test_user_body = resp_get_test_user.json()
+        resp_test_user_body_model = UserRead.model_validate(resp_test_user_body)
+        resp_test_user_body_model_updated = resp_test_user_body_model.model_copy(update={"role": "test"})
+        
+        resp_upd_all = await client.put(
+            f"/{id_user_all_fields}", 
+            json=user_all_fields_updated.model_dump(exclude_unset=True)
+        )
+        resp_upd_all_body = resp_upd_all.json()
+        resp_upd_all_model = UserUpdate.model_validate(resp_upd_all_body)
+
+        assert resp_upd_all_model.model_dump() == resp_test_user_body_model_updated.model_dump(exclude={"id"})
