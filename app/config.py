@@ -10,24 +10,24 @@ log = setup_logger("app", "app.log")
 
 # === DB ===
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid", case_sensitive=True)
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True)
 
-    DB_HOST: str
-    DB_NAME: str
-    DB_PORT: int
-    DB_USER: str
-    DB_PASS: SecretStr
+    PG_DB: str
+    PG_NAME: str
+    PG_PORT: int
+    PG_USER: str
+    PG_PASS: SecretStr
 
     @computed_field
     @property
     def conn_url(self) -> PostgresDsn:
         obj = PostgresDsn.build(
             scheme="postgresql+asyncpg",
-            host=self.DB_HOST,
-            path=self.DB_NAME,
-            port=self.DB_PORT,
-            username=self.DB_USER,
-            password=self.DB_PASS.get_secret_value(),
+            host=self.PG_DB,
+            path=self.PG_NAME,
+            port=self.PG_PORT,
+            username=self.PG_USER,
+            password=self.PG_PASS.get_secret_value(),
         )
         return obj
 
