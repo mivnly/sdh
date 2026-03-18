@@ -48,7 +48,7 @@ async def test_users_update(add_test_users: list[dict], users_url):
         user_req_fields_updated = UserUpdate(
             name="TestUserNameUpd",
             surname=f"TestUserSurnameUpd",
-            username=f"TestUserAllFields_Upd_{datetime.now().strftime('%Y%m%d-%H%M%S.%f')[:-3]}",
+            username=f"TestUserAllFieldsUpd_{datetime.now().strftime('%Y%m%d-%H%M%S.%f')[:-3]}",
             comment="User for testing updated",
             role="user"
         )
