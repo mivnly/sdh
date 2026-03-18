@@ -1,3 +1,4 @@
+import asyncio
 import re
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -42,6 +43,7 @@ async def delete_test_users(users_url: URL):
 @pytest_asyncio.fixture(scope="function")
 async def add_test_users(delete_test_users, users_url: URL) -> AsyncGenerator[list[dict]]:
     async with AsyncClient(base_url=users_url) as client:
+        # Defining test users to be created
         test_user_req_fields = UserCreate(
             username=f"TestUserRequiredFields_{datetime.now().strftime('%Y%m%d-%H%M%S.%f')[:-3]}"
         )
@@ -53,30 +55,29 @@ async def add_test_users(delete_test_users, users_url: URL) -> AsyncGenerator[li
             role="user",
         )
 
+        # Creating test users
         r1add = await client.post("/", json=test_user_req_fields.model_dump())
         r1addbody: dict = r1add.json()
         logjson("Added user during setup: ", r1addbody)
-        radd2 = await client.post("/", json=test_user_all_fields.model_dump())
-        r2addbody: dict = radd2.json()
+        r2add = await client.post("/", json=test_user_all_fields.model_dump())
+        r2addbody: dict = r2add.json()
         logjson("Added user during setup: ", r2addbody)
+
+        # Gathering IDs of created users
+        rget = await client.get("/")
+        rgetbody: list[dict[str, Any]] = rget.json()
+        test_usernames = (test_user_req_fields.username, test_user_all_fields.username)
+        assert test_usernames is not None, "No test users were created (possible error during creating)"
+        created_users_ids = [user.get("id") for user in rgetbody if user.get("username") in test_usernames]
+        log.info(f"IDs of created users: {created_users_ids}")
 
         yield [r1addbody, r2addbody]
 
-        resp = await client.get(users_url)
-        respbody: list[dict[str, Any]] = resp.json()
+        # Removing created users
+        delete_tasks = [client.delete(f"/{id}") for id in created_users_ids]
+        results = await asyncio.gather(*delete_tasks)
 
-        # Search test users in the response by username
-        user_with_req_fields_dict = next(
-            (user for user in respbody if user.get("username") == test_user_req_fields.username), None
-        )
-        assert user_with_req_fields_dict is not None, f"User with username {test_user_req_fields.username} not found"
-        user_with_all_fields_dict = next(
-            (user for user in respbody if user.get("username") == test_user_all_fields.username), None
-        )
-        assert user_with_all_fields_dict is not None, f"User with username {test_user_req_fields.username} not found"
-
-        await client.delete(f"{user_with_req_fields_dict.get('id')}")
-        await client.delete(f"{user_with_all_fields_dict.get('id')}")
-
-        log.info(f"Deleted user during teardown with ID: {user_with_req_fields_dict.get('id')}")
-        log.info(f"Deleted user during teardown with ID: {user_with_all_fields_dict.get('id')}")
+        if all(r.status_code == 200 for r in results):
+            log.info(f"Users with IDs {created_users_ids} has been deleted successfully")
+        else:
+            log.error(f"Error occured during deleting test users. Got status: {[r for r in results if r != 200]}")
