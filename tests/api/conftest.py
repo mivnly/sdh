@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 import pytest_asyncio
-from httpx import URL, AsyncClient
+from httpx import URL, AsyncClient, codes
 
 from app.config import app_urls
 from app.schemas.users import UserCreate
@@ -58,9 +58,11 @@ async def add_test_users(delete_test_users, users_url: URL) -> AsyncGenerator[li
         # Creating test users
         r1add = await client.post("/", json=test_user_req_fields.model_dump())
         r1addbody: dict = r1add.json()
+        assert r1add.status_code == codes.CREATED
         logjson("Added user during setup: ", r1addbody)
         r2add = await client.post("/", json=test_user_all_fields.model_dump())
         r2addbody: dict = r2add.json()
+        assert r1add.status_code == codes.CREATED
         logjson("Added user during setup: ", r2addbody)
 
         # Gathering IDs of created users
