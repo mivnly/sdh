@@ -123,3 +123,33 @@ async def test_users_update(add_test_users: list[dict], users_url):
 
         assert resp.status_code == httpx.codes.OK
         assert resp_upd_all_model.model_dump() == resp_test_user_body_model_updated.model_dump(exclude={"id"})
+
+
+@pytest.mark.asyncio
+async def test_user_delete(users_url):
+    test_user = UserCreate(
+        username=f"TestUserRequiredFields_{datetime.now().strftime('%Y%m%d-%H%M%S.%f')[:-3]}"
+    )
+
+    async with httpx.AsyncClient(base_url=users_url) as client:
+        rpost = await client.post("/", json=test_user.model_dump())
+        assert rpost.status_code == httpx.codes.CREATED
+
+        rget = await client.get("/")
+        assert rget.status_code == httpx.codes.OK
+        rgetbody = rget.json()
+
+        user_id = next(
+            (user.get("id") for user in rgetbody if user.get("username") == test_user.username),
+            None
+        )
+        assert user_id is not None, f"User with username {test_user.username} not found"
+
+        rdel = await client.delete(f"/{user_id}")
+        assert rdel.status_code == httpx.codes.OK
+
+        rgetbyid = await client.get(f"/{user_id}")
+        rgetbyid_body = rgetbyid.json()
+        
+        assert rgetbyid.status_code == httpx.codes.NOT_FOUND
+        assert rgetbyid_body == {"detail": "User with provided ID is not found"}
