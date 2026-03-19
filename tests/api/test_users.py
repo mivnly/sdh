@@ -69,6 +69,28 @@ async def test_users_get(add_test_users: list[dict], users_url):
 
 
 @pytest.mark.asyncio
+async def test_user_get_by_id(add_test_users: list[dict], users_url):
+    user_req_fields = add_test_users[0]
+
+    async with httpx.AsyncClient(base_url=users_url) as client:
+        r = await client.get("/")
+        rbody = r.json()
+
+        test_user_id = next(
+            (user.get("id") for user in rbody if user.get("username") == user_req_fields.get("username")),
+            None
+        )
+        assert test_user_id is not None, "Test user not found (possible error during creating)"
+
+        rbyid = await client.get(f"/{test_user_id}")
+        assert rbyid.status_code == httpx.codes.OK
+
+        rbyidbody = rbyid.json()
+        db_test_user = UserRead.model_validate(rbyidbody)
+        assert db_test_user.model_dump(exclude={"id"}) == user_req_fields
+
+
+@pytest.mark.asyncio
 async def test_users_update(add_test_users: list[dict], users_url):
     async with httpx.AsyncClient(base_url=users_url) as client:
         user_req_fields_updated = UserUpdate(
@@ -150,6 +172,6 @@ async def test_user_delete(users_url):
 
         rgetbyid = await client.get(f"/{user_id}")
         rgetbyid_body = rgetbyid.json()
-        
+
         assert rgetbyid.status_code == httpx.codes.NOT_FOUND
         assert rgetbyid_body == {"detail": "User with provided ID is not found"}
