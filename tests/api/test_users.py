@@ -41,6 +41,19 @@ async def test_users_add(add_test_users: list[dict], users_url):
 
 
 @pytest.mark.asyncio
+async def test_users_add_wo_username(add_test_users: list[dict], users_url):
+    async with httpx.AsyncClient(base_url=users_url) as client:
+        r = await client.post("/", json={"username": None})
+        assert r.status_code == httpx.codes.UNPROCESSABLE_ENTITY
+
+        rbody = r.json()
+        detail = rbody["detail"][0]
+
+        assert detail["loc"] == ["body", "username"]
+        assert detail["msg"] == "Input should be a valid string"
+
+
+@pytest.mark.asyncio
 async def test_users_get(add_test_users: list[dict], users_url):
     async with httpx.AsyncClient() as client:
         created_user_req_fields = add_test_users[0]
