@@ -41,7 +41,7 @@ async def test_users_add(add_test_users: list[dict], users_url):
 
 
 @pytest.mark.asyncio
-async def test_users_add_wo_username(add_test_users: list[dict], users_url):
+async def test_users_add_wo_username(users_url):
     async with httpx.AsyncClient(base_url=users_url) as client:
         r = await client.post("/", json={"username": None})
         assert r.status_code == httpx.codes.UNPROCESSABLE_ENTITY
