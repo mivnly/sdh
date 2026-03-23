@@ -33,7 +33,7 @@ services:
       env_file: .env
       volumes:
         - .:/app
-        - /app/.venv
+        - backend_venv:/app/.venv
       command: >
         sh -c "
           echo 'Applying Alembic migrations...' &&
@@ -56,3 +56,6 @@ services:
       command: npm run dev -- --host 0.0.0.0
       stdin_open: true
       tty: true
+
+volumes:
+  backend_venv:
