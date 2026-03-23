@@ -12,9 +12,9 @@ services:
     ports:
       - "${PG_PORT}:${PG_PORT}"
     volumes:
-          - postgres_data:/var/lib/postgresql/data
+          - /postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -56,6 +56,3 @@ services:
       command: npm run dev -- --host 0.0.0.0
       stdin_open: true
       tty: true
-
-volumes:
-  postgres_data:
