@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     PG_PORT: int
     PG_USER: str
     PG_PASS: SecretStr
+    FRONTEND_PATH: str
 
     @computed_field
     @property
