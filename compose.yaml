@@ -3,7 +3,7 @@ name: sdh
 services:
   postgres:
     image: postgres:18-alpine
-    container_name: postgres
+    container_name: ${PG_NAME}
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${PG_DB}
@@ -12,12 +12,50 @@ services:
     ports:
       - "${PG_PORT}:${PG_PORT}"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+          - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  backend:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      container_name: sdh-backend
+      restart: unless-stopped
+      ports:
+        - "8000:8000"
+      depends_on:
+        postgres:
+          condition: service_healthy
+      env_file: .env
+      volumes:
+        - .:/app
+        - /app/.venv
+      command: >
+        sh -c "
+          echo 'Applying Alembic migrations...' &&
+          uv run alembic upgrade head &&
+          echo 'Starting FastAPI dev server...' &&
+          exec uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+        "
+
+  frontend:
+      build:
+        context: ${FRONTEND_PATH:-../frontend}
+        dockerfile: Dockerfile
+      container_name: sdh-frontend
+      restart: unless-stopped
+      ports:
+        - "5173:5173"
+      volumes:
+        - ${FRONTEND_PATH:-../frontend}:/app
+        - /app/node_modules
+      command: npm run dev -- --host 0.0.0.0
+      stdin_open: true
+      tty: true
 
 volumes:
   postgres_data:
