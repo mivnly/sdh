@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import allure
 import httpx
 import pytest
 
@@ -7,11 +8,15 @@ from app.schemas.users import UserCreate, UserRead, UserUpdate
 from tests.utils import log, logjson
 
 
+@allure.parent_suite("Users")
+@allure.suite("API")
+@allure.title("Add user")
+@allure.tag("Positive")
 @pytest.mark.asyncio
 async def test_users_add(add_test_users: list[dict], users_url):
-    # Validate created test users
     user_req_fields = UserCreate.model_validate(add_test_users[0])
     user_all_fields = UserCreate.model_validate(add_test_users[1])
+
 
     async with httpx.AsyncClient() as client:
         # Get test users from db
@@ -40,6 +45,10 @@ async def test_users_add(add_test_users: list[dict], users_url):
         assert db_user_all_fields_model.model_dump(exclude={"id"}) == user_all_fields.model_dump()
 
 
+@allure.parent_suite("Users")
+@allure.suite("API")
+@allure.title("Add user without username")
+@allure.tag("Negative")
 @pytest.mark.asyncio
 async def test_users_add_wo_username(users_url):
     async with httpx.AsyncClient(base_url=users_url) as client:
@@ -53,6 +62,10 @@ async def test_users_add_wo_username(users_url):
         assert detail["msg"] == "Input should be a valid string"
 
 
+@allure.parent_suite("Users")
+@allure.suite("API")
+@allure.title("Get users")
+@allure.tag("Positive")
 @pytest.mark.asyncio
 async def test_users_get(add_test_users: list[dict], users_url):
     async with httpx.AsyncClient() as client:
@@ -81,6 +94,10 @@ async def test_users_get(add_test_users: list[dict], users_url):
         assert created_user_all_fields == test_user_with_all_fields.model_dump(exclude={"id"})
 
 
+@allure.parent_suite("Users")
+@allure.suite("API")
+@allure.title("Get user by id")
+@allure.tag("Positive")
 @pytest.mark.asyncio
 async def test_user_get_by_id(add_test_users: list[dict], users_url):
     user_req_fields = add_test_users[0]
@@ -103,6 +120,10 @@ async def test_user_get_by_id(add_test_users: list[dict], users_url):
         assert db_test_user.model_dump(exclude={"id"}) == user_req_fields
 
 
+@allure.parent_suite("Users")
+@allure.suite("API")
+@allure.title("Update user by id")
+@allure.tag("Positive")
 @pytest.mark.asyncio
 async def test_users_update(add_test_users: list[dict], users_url):
     async with httpx.AsyncClient(base_url=users_url) as client:
@@ -160,6 +181,10 @@ async def test_users_update(add_test_users: list[dict], users_url):
         assert resp_upd_all_model.model_dump() == resp_test_user_body_model_updated.model_dump(exclude={"id"})
 
 
+@allure.parent_suite("Users")
+@allure.suite("API")
+@allure.title("Delete user")
+@allure.tag("Positive")
 @pytest.mark.asyncio
 async def test_user_delete(users_url):
     test_user = UserCreate(

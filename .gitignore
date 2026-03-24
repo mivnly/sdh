@@ -18,4 +18,5 @@ app/migrations
 .ruff_cache
 .vscode
 /main*
+allure-results
 logs

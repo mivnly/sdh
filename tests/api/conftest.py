@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import Any
 
+import allure
 import pytest
 import pytest_asyncio
 from httpx import URL, AsyncClient, codes
@@ -19,7 +20,7 @@ def users_url() -> URL:
     log.info(f"Using url: {url}")
     return url
 
-
+@allure.title("Delete all test users created by autotests")
 @pytest_asyncio.fixture(scope="session")
 async def delete_test_users(users_url: URL):
     async with AsyncClient(base_url=users_url) as client:
@@ -40,6 +41,7 @@ async def delete_test_users(users_url: URL):
         log.info(f"Deleting users with IDs: {matched_ids}")
 
 
+@allure.title("Create 2 tests users: with only required fields and with all fields")
 @pytest_asyncio.fixture(scope="function")
 async def add_test_users(delete_test_users, users_url: URL) -> AsyncGenerator[list[dict]]:
     async with AsyncClient(base_url=users_url) as client:
