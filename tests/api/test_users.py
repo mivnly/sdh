@@ -1,11 +1,9 @@
-from datetime import datetime
-
 import allure
 import httpx
 import pytest
 
 from app.schemas.users import UserCreate, UserRead, UserUpdate
-from tests.utils import log, logjson
+from tests.utils import log, generate_datetime_id, logjson
 
 
 @allure.parent_suite("Users")
@@ -130,7 +128,7 @@ async def test_users_update(add_test_users: list[dict], users_url):
         user_req_fields_updated = UserUpdate(
             name="TestUserNameUpd",
             surname=f"TestUserSurnameUpd",
-            username=f"TestUserAllFieldsUpd_{datetime.now().strftime('%Y%m%d-%H%M%S.%f')[:-3]}",
+            username=f"TestUserAllFieldsUpd_{generate_datetime_id()}",
             comment="User for testing updated",
             role="user"
         )
@@ -188,7 +186,7 @@ async def test_users_update(add_test_users: list[dict], users_url):
 @pytest.mark.asyncio
 async def test_user_delete(users_url):
     test_user = UserCreate(
-        username=f"TestUserRequiredFields_{datetime.now().strftime('%Y%m%d-%H%M%S.%f')[:-3]}"
+        username=f"TestUserRequiredFields_{generate_datetime_id()}"
     )
 
     async with httpx.AsyncClient(base_url=users_url) as client:
